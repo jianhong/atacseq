@@ -8,11 +8,13 @@ library(optparse)
 library(GenomicFeatures)
 library(rtracklayer)
 library(Rsamtools)
+library(BSgenome)
 
 option_list <- list(make_option(c("-n", "--name"), type="character", default=NULL, help="prefix name of output files", metavar="path"),
                     make_option(c("-p", "--peaks"), type="character", default=NULL, help="peak files", metavar="string"),
                     make_option(c("-b", "--bams"), type="character", default=NULL, help="bam files", metavar="string"),
                     make_option(c("-g", "--gtf"), type="character", default=NULL, help="filename of gtf file", metavar="path"),
+                    make_option(c("-f", "--fasta"), type="character", default=NULL, help="filename of genome fa file", metavar="path"),
                     make_option(c("-c", "--cores"), type="integer", default=1, help="Number of cores", metavar="integer"))
 
 opt_parser <- OptionParser(option_list=option_list)
@@ -29,6 +31,10 @@ if (is.null(opt$peaks)){
 if (is.null(opt$gtf)){
   print_help(opt_parser)
   stop("Please provide gtf file.", call.=FALSE)
+}
+if (is.null(opt$fasta)){
+  print_help(opt_parser)
+  stop("Please provide fasta file.", call.=FALSE)
 }
 
 txdb <- makeTxDbFromGFF(opt$gtf)
@@ -62,8 +68,11 @@ tags <- tags[tags!="PG"]
 outPath <- file.path(pf, "splited")
 dir.create(outPath)
 
-which <- as(seqinfo(txdb), "GRanges")
-seqlevelsStyle <- seqlevelsStyle(levels(bamTop100$rname))[1]
+header <- scanBamHeader(bamfile)
+which <- header[[1]]$targets
+which <- GRanges(names(which), IRanges(start = 1, end = which))
+seqlev <- seqlevels(which)
+#seqlevelsStyle <- seqlevelsStyle(levels(bamTop100$rname))[1]
 gal <- readBamFile(bamfile, tag=tags, which=which, asMates=TRUE, bigFile=TRUE)
 shiftedBamfile <- file.path(outPath, "shifted.bam")
 gal1 <- shiftGAlignmentsList(gal, outbam=shiftedBamfile)
@@ -118,85 +127,108 @@ bamfiles <- file.path(outPath,
                         "mononucleosome.bam",
                         "dinucleosome.bam",
                         "trinucleosome.bam"))
+if(all(file.exists(bamfiles))){
+  TSS <- promoters(txs, upstream=0, downstream=1)
+  TSS <- unique(TSS)
+  (librarySize <- estLibSize(bamfiles))
+  
+  NTILE <- 101
+  dws <- ups <- 1010
+  sigs <- enrichedFragments(gal=objs[c("NucleosomeFree", 
+                                       "mononucleosome",
+                                       "dinucleosome",
+                                       "trinucleosome")], 
+                            TSS=TSS,
+                            librarySize=librarySize,
+                            seqlev=seqlev,
+                            TSS.filter=0.5,
+                            n.tile = NTILE,
+                            upstream = ups,
+                            downstream = dws)
+  
+  ## log2 transformed signals
+  sigs.log2 <- lapply(sigs, function(.ele) log2(.ele+1))
+  #plot heatmap
+  pdf(file.path(pf, paste0("featureAlignedHeatmap.", bamfile.labels, ".pdf")))
+  featureAlignedHeatmap(sigs.log2, reCenterPeaks(TSS, width=ups+dws),
+                        zeroAt=.5, n.tile=NTILE)
+  dev.off()
+  
+  out <- featureAlignedDistribution(sigs, 
+                                    reCenterPeaks(TSS, width=ups+dws),
+                                    zeroAt=.5, n.tile=NTILE, type="l", 
+                                    ylab="Averaged coverage")
+  
+  range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+  out <- apply(out, 2, range01)
+  pdf(file.path(pf, paste0("featureAlignedTSScurve.", bamfile.labels, ".pdf")))
+  matplot(out, type="l", xaxt="n", 
+          xlab="Position (bp)", 
+          ylab="Fraction of signal")
+  axis(1, at=seq(0, 100, by=10)+1, 
+       labels=c("-1K", seq(-800, 800, by=200), "1K"), las=2)
+  abline(v=seq(0, 100, by=10)+1, lty=2, col="gray")
+  dev.off()
+  png(file.path(pf, paste0("featureAlignedTSScurve.", bamfile.labels, ".png")))
+  matplot(out, type="l", xaxt="n", 
+          xlab="Position (bp)", 
+          ylab="Fraction of signal")
+  axis(1, at=seq(0, 100, by=10)+1, 
+       labels=c("-1K", seq(-800, 800, by=200), "1K"), las=2)
+  abline(v=seq(0, 100, by=10)+1, lty=2, col="gray")
+  dev.off()
+}
 
-TSS <- promoters(txs, upstream=0, downstream=1)
-TSS <- unique(TSS)
-(librarySize <- estLibSize(bamfiles))
-
-NTILE <- 101
-dws <- ups <- 1010
-sigs <- enrichedFragments(gal=objs[c("NucleosomeFree", 
-                                     "mononucleosome",
-                                     "dinucleosome",
-                                     "trinucleosome")], 
-                          TSS=TSS,
-                          librarySize=librarySize,
-                          seqlev=seqlev,
-                          TSS.filter=0.5,
-                          n.tile = NTILE,
-                          upstream = ups,
-                          downstream = dws)
-
-## log2 transformed signals
-sigs.log2 <- lapply(sigs, function(.ele) log2(.ele+1))
-#plot heatmap
-pdf(file.path(pf, paste0("featureAlignedHeatmap.", bamfile.labels, ".pdf")))
-featureAlignedHeatmap(sigs.log2, reCenterPeaks(TSS, width=ups+dws),
-                      zeroAt=.5, n.tile=NTILE)
-dev.off()
-
-out <- featureAlignedDistribution(sigs, 
-                                  reCenterPeaks(TSS, width=ups+dws),
-                                  zeroAt=.5, n.tile=NTILE, type="l", 
-                                  ylab="Averaged coverage")
-
-range01 <- function(x){(x-min(x))/(max(x)-min(x))}
-out <- apply(out, 2, range01)
-pdf(file.path(pf, paste0("featureAlignedTSScurve.", bamfile.labels, ".pdf")))
-matplot(out, type="l", xaxt="n", 
-        xlab="Position (bp)", 
-        ylab="Fraction of signal")
-axis(1, at=seq(0, 100, by=10)+1, 
-     labels=c("-1K", seq(-800, 800, by=200), "1K"), las=2)
-abline(v=seq(0, 100, by=10)+1, lty=2, col="gray")
-dev.off()
-png(file.path(pf, paste0("featureAlignedTSScurve.", bamfile.labels, ".png")))
-matplot(out, type="l", xaxt="n", 
-        xlab="Position (bp)", 
-        ylab="Fraction of signal")
-axis(1, at=seq(0, 100, by=10)+1, 
-     labels=c("-1K", seq(-800, 800, by=200), "1K"), las=2)
-abline(v=seq(0, 100, by=10)+1, lty=2, col="gray")
-dev.off()
-
-
-CTCF <- query(MotifDb, c("CTCF"))
-CTCF <- as.list(CTCF)
-
-pdf(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".pdf")))
-sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]], 
-                         genome=genome,
-                         min.score="90%", seqlev=seqlev,
-                         upstream=100, downstream=100)
-dev.off()
-png(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".png")))
-sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]], 
-                         genome=genome,
-                         min.score="90%", seqlev=seqlev,
-                         upstream=100, downstream=100)
-dev.off()
-
-pdf(file.path(pf, paste0("CTCF.vplot.", bamfile.labels, ".pdf")))
-vp <- vPlot(shiftedBamfile, pfm=CTCF[[1]], 
-            genome=genome, min.score="90%", seqlev=seqlev,
-            upstream=200, downstream=200, 
-            ylim=c(30, 250), bandwidth=c(2, 1))
-dev.off()
-pdf(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".pdf")))
-distanceDyad(vp, pch=20, cex=.5)
-dev.off()
-png(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".png")))
-distanceDyad(vp, pch=20, cex=.5)
-dev.off()
+# CTCF <- query(MotifDb, c("CTCF"))
+# CTCF <- as.list(CTCF)
+# 
+# seed <- paste("Package: BSgenome.Tguttata.UCSC.taeGut1
+# Title: Full genome sequences for Taeniopygia guttata (UCSC version taeGut1)
+# Description: Full genome sequences for Taeniopygia guttata (Zebra finch) as provided by UCSC (taeGut1, Jul. 2008) and stored in Biostrings objects.
+# Version: 1.4.2
+# organism: Taeniopygia guttata
+# common_name: Zebra finch
+# provider: UCSC
+# provider_version: taeGut1
+# release_date: Jul. 2008
+# release_name: WUSTL v3.2.4
+# source_url: http://hgdownload.soe.ucsc.edu/goldenPath/taeGut1/bigZips/
+# organism_biocview: Taeniopygia_guttata
+# BSgenomeObjname: Tguttata
+# SrcDataFiles: chromFa.tar.gz from http://hgdownload.soe.ucsc.edu/goldenPath/taeGut1/bigZips/
+# PkgExamples: genome$chr1 # abc
+# seqs_srcdir:", opt$fasta)
+# writeLines(seed, "BSgenome.Tguttata.UCSC.taeGut1")
+# forgeMaskedBSgenomeDataPkg("BSgenome.Tguttata.UCSC.taeGut1", masks_srcdir=".")
+# dir.create("./library")
+# install.packages("BSgenome.Mfuro.UCSC.musFur1", type = "source", repos=NULL, lib = "./library")
+# library("BSgenome.Mfuro.UCSC.musFur1", lib.loc="./library")
+# genome <- BSgenome.Mfuro.UCSC.musFur1
+# 
+# pdf(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".pdf")))
+# sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]], 
+#                          genome=genome,
+#                          min.score="90%", seqlev=seqlev,
+#                          upstream=100, downstream=100)
+# dev.off()
+# png(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".png")))
+# sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]], 
+#                          genome=genome,
+#                          min.score="90%", seqlev=seqlev,
+#                          upstream=100, downstream=100)
+# dev.off()
+# 
+# pdf(file.path(pf, paste0("CTCF.vplot.", bamfile.labels, ".pdf")))
+# vp <- vPlot(shiftedBamfile, pfm=CTCF[[1]], 
+#             genome=genome, min.score="90%", seqlev=seqlev,
+#             upstream=200, downstream=200, 
+#             ylim=c(30, 250), bandwidth=c(2, 1))
+# dev.off()
+# pdf(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".pdf")))
+# distanceDyad(vp, pch=20, cex=.5)
+# dev.off()
+# png(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".png")))
+# distanceDyad(vp, pch=20, cex=.5)
+# dev.off()
 
 

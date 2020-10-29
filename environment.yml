@@ -46,3 +46,6 @@ dependencies:
   - bioconda::bioconductor-biocparallel=1.20.0
   - bioconda::bioconductor-deseq2=1.26.0
   - bioconda::bioconductor-vsn=3.54.0
+  - bioconda::bioconductor-atacseqqc
+  - bioconda::bioconductor-chippeakanno
+  - bioconda::bioconductor-motifdb
