@@ -15,7 +15,8 @@ option_list <- list(make_option(c("-n", "--name"), type="character", default=NUL
                     make_option(c("-b", "--bams"), type="character", default=NULL, help="bam files", metavar="string"),
                     make_option(c("-g", "--gtf"), type="character", default=NULL, help="filename of gtf file", metavar="path"),
                     make_option(c("-f", "--fasta"), type="character", default=NULL, help="filename of genome fa file", metavar="path"),
-                    make_option(c("-c", "--cores"), type="integer", default=1, help="Number of cores", metavar="integer"))
+                    make_option(c("-c", "--cores"), type="integer", default=1, help="Number of cores", metavar="integer"),
+                    make_option(c("-s", "--species"), type="character", default=NULL, help="species of genome", metavar="string"))
 
 opt_parser <- OptionParser(option_list=option_list)
 opt <- parse_args(opt_parser)
@@ -179,6 +180,7 @@ if(all(file.exists(bamfiles))){
   dev.off()
 }
 
+dir.create(opt$species)
 # CTCF <- query(MotifDb, c("CTCF"))
 # CTCF <- as.list(CTCF)
 # 

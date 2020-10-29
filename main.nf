@@ -1522,7 +1522,8 @@ process MERGED_LIB_ATACseqQC {
         --peaks $peak \\
         --bams ${bam_files.join('___')} \\
         --fasta ${fasta} \\
-        --gtf $gtf
+        --gtf $gtf \\
+        --species ${params.species}
     """
 }
 
