@@ -137,6 +137,7 @@ params.mito_name = params.genome ? params.genomes[ params.genome ].mito_name ?: 
 params.macs_gsize = params.genome ? params.genomes[ params.genome ].macs_gsize ?: false : false
 params.blacklist = params.genome ? params.genomes[ params.genome ].blacklist ?: false : false
 params.anno_readme = params.genome ? params.genomes[ params.genome ].readme ?: false : false
+params.species = params.genome ? params.genomes[ params.genome ].species ?: false : false
 
 // Global variables
 def PEAK_TYPE = params.narrow_peak ? 'narrowPeak' : 'broadPeak'
@@ -150,6 +151,7 @@ ch_multiqc_config = file("$baseDir/assets/multiqc_config.yaml", checkIfExists: t
 ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config, checkIfExists: true) : Channel.empty()
 ch_output_docs = file("$baseDir/docs/output.md", checkIfExists: true)
 ch_output_docs_images = file("$baseDir/docs/images/", checkIfExists: true)
+ch_index_docs = file("$baseDir/docs/index.Rmd", checkIfExists: true)
 
 // JSON files required by BAMTools for alignment filtering
 if (params.single_end) {
@@ -425,6 +427,8 @@ if (!params.gene_bed) {
         MAKE_BED = true
     }
 }
+// issue, it can not handle annotation in different chromosomal/strand
+// TODO: change it by TxDb
 if (MAKE_BED) {
     process MAKE_GENE_BED {
         tag "$gtf"
@@ -523,18 +527,27 @@ process FASTQC {
 
     output:
     path '*.{zip,html}' into ch_fastqc_reports_mqc
+    path 'md5.*.txt' into ch_checksum
 
     script:
     // Added soft-links to original fastqs for consistent naming in MultiQC
     if (params.single_end) {
         """
+        touch md5.${name}.txt
         [ ! -f  ${name}.fastq.gz ] && ln -s $reads ${name}.fastq.gz
+        gunzip -c ${name}.fastq.gz > ${name}.fastq
+        ${params.md5sum} ${name}.fastq >>md5.${name}.txt
         fastqc -q -t $task.cpus ${name}.fastq.gz
         """
     } else {
         """
+        touch md5.${name}.txt
         [ ! -f  ${name}_1.fastq.gz ] && ln -s ${reads[0]} ${name}_1.fastq.gz
         [ ! -f  ${name}_2.fastq.gz ] && ln -s ${reads[1]} ${name}_2.fastq.gz
+        gunzip -c ${name}_1.fastq.gz > ${name}_1.fastq
+        ${params.md5sum} ${name}_1.fastq >>md5.${name}.txt
+        gunzip -c ${name}_2.fastq.gz > ${name}_2.fastq
+        ${params.md5sum} ${name}_2.fastq >>md5.${name}.txt
         fastqc -q -t $task.cpus ${name}_1.fastq.gz
         fastqc -q -t $task.cpus ${name}_2.fastq.gz
         """
@@ -721,7 +734,8 @@ process MERGED_LIB_BAM {
     output:
     tuple val(name), path("*${prefix}.sorted.{bam,bam.bai}") into ch_mlib_bam_filter,
                                                                   ch_mlib_bam_preseq,
-                                                                  ch_mlib_bam_ataqv
+                                                                  ch_mlib_bam_ataqv,
+                                                                  ch_mlib_bam_atacseqqc
     path '*.{flagstat,idxstats,stats}' into ch_mlib_bam_stats_mqc
     path '*.txt' into ch_mlib_bam_metrics_mqc
 
@@ -983,6 +997,7 @@ process MERGED_LIB_PICARD_METRICS {
 /*
  * STEP 5.3: Read depth normalised bigWig
  */
+// TODO: change to deepTools
 process MERGED_LIB_BIGWIG {
     tag "$name"
     label 'process_medium'
@@ -990,6 +1005,7 @@ process MERGED_LIB_BIGWIG {
         saveAs: { filename ->
                       if (filename.endsWith('scale_factor.txt')) "scale/$filename"
                       else if (filename.endsWith('.bigWig')) filename
+                      else if (filename.endsWith('.bw')) "deepTools/$filename"
                       else null
                 }
 
@@ -1001,11 +1017,14 @@ process MERGED_LIB_BIGWIG {
     tuple val(name), path('*.bigWig') into ch_mlib_bigwig_plotprofile
     path '*igv.txt' into ch_mlib_bigwig_igv
     path '*scale_factor.txt'
+    path '*.bw'
 
     script:
     prefix = "${name}.mLb.clN"
     pe_fragment = params.single_end ? '' : '-pc'
     extend = (params.single_end && params.fragment_size > 0) ? "-fs ${params.fragment_size}" : ''
+    singleExt = (params.single_end && params.fragment_size > 0) ? "--extendReads ${params.fragment_size}" : ''
+    extendReads = params.single_end ? "${singleExt}" : '--extendReads'
     """
     SCALE_FACTOR=\$(grep 'mapped (' $flagstat | awk '{print 1000000/\$1}')
     echo \$SCALE_FACTOR > ${prefix}.scale_factor.txt
@@ -1014,6 +1033,10 @@ process MERGED_LIB_BIGWIG {
     bedGraphToBigWig ${prefix}.bedGraph $sizes ${prefix}.bigWig
 
     find * -type f -name "*.bigWig" -exec echo -e "bwa/mergedLibrary/bigwig/"{}"\\t0,0,178" \\; > ${prefix}.bigWig.igv.txt
+    
+    bamCoverage -b ${bam[0]} \\
+       -o ${name}.norm.CPM.bw \\
+       --binSize 10  --normalizeUsing CPM ${extendReads}
     """
 }
 
@@ -1129,7 +1152,8 @@ process MERGED_LIB_MACS2 {
     tuple val(name), path("*$PEAK_TYPE") into ch_mlib_macs_homer,
                                               ch_mlib_macs_qc,
                                               ch_mlib_macs_consensus,
-                                              ch_mlib_macs_ataqv
+                                              ch_mlib_macs_ataqv,
+                                              ch_mlib_macs_atacseqqc
     path '*igv.txt' into ch_mlib_macs_igv
     path '*_mqc.tsv' into ch_mlib_macs_mqc
     path '*.{bed,xls,gappedPeak,bdg}'
@@ -1166,6 +1190,7 @@ process MERGED_LIB_MACS2 {
 /*
  * STEP 6.2: Annotate peaks with HOMER
  */
+//TODO: move to ChIPpeakAnno
 process MERGED_LIB_MACS2_ANNOTATE {
     tag "$name"
     label 'process_medium'
@@ -1236,6 +1261,7 @@ process MERGED_LIB_MACS2_QC {
 /*
  * STEP 6.4: Consensus peaks across samples, create boolean filtering file, SAF file for featureCounts and UpSetR plot for intersection
  */
+//TODO: change to DiffBind
 process MERGED_LIB_CONSENSUS {
     label 'process_long'
     publishDir "${params.outdir}/bwa/mergedLibrary/macs/${PEAK_TYPE}/consensus", mode: params.publish_dir_mode,
@@ -1467,6 +1493,39 @@ process MERGED_LIB_ATAQV_MKARV {
         ${json.join(' ')}
     """
 }
+
+/*
+ * STEP 6.10: Run ataqv mkarv on all JSON files to render web app
+ */
+process MERGED_LIB_ATACseqQC {
+    tag "$name"
+    label 'process_high'
+    publishDir "${params.outdir}/bwa/mergedLibrary/ATACseqQC/${PEAK_TYPE}", mode: params.publish_dir_mode
+
+    when:
+    !params.skip_ataqv
+
+    input:
+    tuple val(name), path(bam), path(peak) from ch_mlib_bam_atacseqqc.join(ch_mlib_macs_atacseqqc, by: [0])
+    path fasta from ch_fasta
+    path gtf from ch_gtf
+
+    output:
+    path '*' into atacseqqc_files
+
+    script:
+    """
+    atacseqqc.r \\
+        --cores $task.cpus \\
+        --name $name \\
+        --peaks $peak \\
+        --bams $bam \\
+        --gtf $gtf
+    """
+}
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -2046,6 +2105,7 @@ process MULTIQC {
 
     output:
     path '*multiqc_report.html' into ch_multiqc_report
+    path '*_plots' into ch_multiqc_plots
     path '*_data'
 
     script:
@@ -2083,6 +2143,35 @@ process output_documentation {
     markdown_to_html.py $output_docs -o results_description.html
     """
 }
+
+/*
+ * STEP 12: Output index HTML
+ */
+process index_documentation {
+    publishDir "${params.outdir}", mode: params.publish_dir_mode
+    
+    when:
+    !params.skip_multiqc
+    
+    input:
+    path index_docs from ch_index_docs
+    path images from ch_multiqc_plots
+    path doc_img from ch_output_docs_images
+    path designtab from ch_input
+    path checksum from ch_checksum.collect().ifEmpty([])
+    path workflow_summary from ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml')
+    path ('software_versions/*') from ch_software_versions_mqc.collect()
+    
+    output:
+    path 'index.html'
+
+    script:
+    """
+    cp ${index_docs} new.rmd
+    Rscript -e "rmarkdown::render('new.rmd', output_file='index.html', params = list(peaktype='${PEAK_TYPE}', design='${designtab}', genome='${params.genome}', summary='${workflow_summary}'))"
+    """
+}
+
 
 /*
  * Completion e-mail notification

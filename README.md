@@ -58,6 +58,35 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 7. Create IGV session file containing bigWig tracks, peaks and differential sites for data visualisation ([`IGV`](https://software.broadinstitute.org/software/igv/)).
 8. Present QC for raw read, alignment, peak-calling and differential accessibility results ([`ataqv`](https://github.com/ParkerLab/ataqv), [`MultiQC`](http://multiqc.info/), [`R`](https://www.r-project.org/))
 
+## Installation by conda
+
+```bash
+conda update conda
+wget https://raw.githubusercontent.com/jianhong/atacseq/master/environment.yml
+conda env create -n atacflow -f environment.yml
+rm environment.yml
+conda activate atacflow
+srun --mem 60G -c 2 nextflow run jianhong/atacseq -profile test
+```
+
+## Update
+
+```bash
+conda activate atacflow
+nextflow pull jianhong/atacseq
+```
+
+## Remove
+
+```bash
+conda activate atacflow
+nextflow drop jianhong/atacseq
+conda deactivate
+conda remove --name atacflow --all
+conda info --envs
+```
+
+
 ## Quick Start
 
 1. Install [`nextflow`](https://nf-co.re/usage/installation)

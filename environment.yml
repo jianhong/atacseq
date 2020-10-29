@@ -1,11 +1,12 @@
 # You can use this file to create a conda environment for this pipeline:
 #   conda env create -f environment.yml
-name: nf-core-atacseq-1.2.1
+name: atacflow-0.0.1
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
+  - nextflow
   ## conda-forge packages
   - conda-forge::python=3.7.6
   - conda-forge::markdown=3.2.2
