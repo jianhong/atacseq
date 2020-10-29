@@ -34,8 +34,10 @@ if (is.null(opt$gtf)){
 txdb <- makeTxDbFromGFF(opt$gtf)
 gtf <- import(opt$gtf)
 
+opt$bams <- opt$bams[grepl("bam$", opt$bams)]
+bamfile <- unlist(strsplit(opt$bams, "___"))[1]
 bamfile.labels <- opt$name
-if(is.null(bamfile.labels)) bamfile.labels <- gsub(".bam", "", basename(bamfile))
+if(is.null(bamfile.labels)) bamfile.labels <- gsub(".bam", "", basename(bams))
 
 pf <- make.names(opt$name)
 dir.create(pf)

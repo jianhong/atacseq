@@ -1506,7 +1506,7 @@ process MERGED_LIB_ATACseqQC {
     !params.skip_ataqv
 
     input:
-    tuple val(name), path(bam), path(peak) from ch_mlib_bam_atacseqqc.join(ch_mlib_macs_atacseqqc, by: [0])
+    tuple val(name), path(bams), path(peak) from ch_mlib_bam_atacseqqc.join(ch_mlib_macs_atacseqqc, by: [0])
     path fasta from ch_fasta
     path gtf from ch_gtf
 
@@ -1519,7 +1519,7 @@ process MERGED_LIB_ATACseqQC {
         --cores $task.cpus \\
         --name $name \\
         --peaks $peak \\
-        --bams $bam \\
+        --bams $bams.findAll { it.toString().endsWith('.bam') }.join('___') \\
         --gtf $gtf
     """
 }
