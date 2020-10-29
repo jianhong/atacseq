@@ -33,7 +33,7 @@ opt$peaks <- unlist(strsplit(opt$peaks, "___"))
 bamReads <- opt$peaks[grepl("bam$", opt$peaks)]
 names(bamReads) <- sub(".mLb.clN.*bam", "", bamReads)
 Peaks <- opt$peaks[grepl("Peak$", opt$peaks)]
-SampleID <- sub("_peaks.*?Peak", "", Peaks)
+SampleID <- sub(".mLb.clN_peaks.*?Peak", "", Peaks)
 if(!all(names(bamReads) %in% SampleID)){
   stop("some names of bamReads is not in SampleID. names(bamReads)=", 
        paste(names(bamReads), collapse = "; "),
