@@ -1971,7 +1971,7 @@ process MERGED_REP_CONSENSUS_DESEQ2 {
 // Group by ip from this point and carry forward boolean variables
 // need bam file, peaks
 ch_diffbind.join(ch_group_bam_diffbind, by: 0)
-           .map{[it[1], it[2], it[3]]}.flatten()
+           .map{[it[1], it[2][0], it[2][1]]}.flatten()
            .set{ch_peak_bam}
 process DIFFBIND {
   label 'process_medium'
