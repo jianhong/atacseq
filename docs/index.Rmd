@@ -201,17 +201,19 @@ fs <- rds[grepl("fragSize.rds", rds)]
 np <- rds[grepl("nucleosome.position.rds", rds)]
 if(length(fs)>0){
   fs <- lapply(fs, readRDS)
-  fs <- do.call(cbind, unlist(fs, recursive = FALSE))
   fs <- melt(fs)
-  ggplot(fs, aes(x=Var1, y=value, color = Var2)) + geom_line() +
-    xlim(1, 1000) + theme_bw()
+  ggplot(fs, aes(x=Var1, y=value, color = L2)) + geom_line() +
+    xlim(1, 1000) + xlab("fragment size (bp)") + ylab("counts") + theme_bw()
 }
 if(length(np)>0){
   npd <- lapply(np, readRDS)
   npd <- do.call(cbind, npd)
-  colnames(npd) <- paste(rep(sub(".nucleosome.position.rds", "", np), each=2), colnames(npd), sep=".")
+  colnames(npd) <- paste(rep(sub(".nucleosome.position.rds", "", np), each=2), colnames(npd), sep="")
+  rownames(npd) <- seq(-1000, 1000, length.out = 101)
   npd <- melt(npd)
-  ggplot(npd, aes(x=Var1, y=value, color = Var2)) + geom_line() + 
+  npd$nucleosome <- ifelse(grepl("NucleosomeFree", npd$Var2), "NucleosomeFree", "mononucleosome")
+  npd$sample <- ifelse(grepl("NucleosomeFree", npd$Var2), sub("NucleosomeFree", "", npd$Var2), sub("mononucleosome", "", npd$Var2))
+  ggplot(npd, aes(x=Var1, y=value, color = sample)) + geom_line() + facet_wrap(vars(nucleosome), ncol = 1)) +
     theme_bw()
 }
 ```
@@ -254,7 +256,7 @@ filename <- sapply(files, function(.ele) {
     "N/A"
   }
 })
-filename <- sub("svg", "png", filename)
+filename <- gsub("svg", "png", filename)
 ```
 
 

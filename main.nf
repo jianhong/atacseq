@@ -857,7 +857,8 @@ if (params.single_end) {
                 ch_mlib_rm_orphan_bam_plotfingerprint;
                 ch_mlib_rm_orphan_bam_mrep;
                 ch_mlib_name_bam_mlib_counts;
-                ch_mlib_name_bam_mrep_counts }
+                ch_mlib_name_bam_mrep_counts;
+                ch_group_bam_diffbind}
 
     ch_mlib_filter_bam_flagstat
         .into { ch_mlib_rm_orphan_flagstat_bigwig;
@@ -888,7 +889,8 @@ if (params.single_end) {
                                                              ch_mlib_rm_orphan_bam_bigwig,
                                                              ch_mlib_rm_orphan_bam_macs,
                                                              ch_mlib_rm_orphan_bam_plotfingerprint,
-                                                             ch_mlib_rm_orphan_bam_mrep
+                                                             ch_mlib_rm_orphan_bam_mrep,
+                                                             ch_group_bam_diffbind
         tuple val(name), path("${prefix}.bam") into ch_mlib_name_bam_mlib_counts,
                                                     ch_mlib_name_bam_mrep_counts
         tuple val(name), path('*.flagstat') into ch_mlib_rm_orphan_flagstat_bigwig,
@@ -1153,7 +1155,8 @@ process MERGED_LIB_MACS2 {
                                               ch_mlib_macs_qc,
                                               ch_mlib_macs_consensus,
                                               ch_mlib_macs_ataqv,
-                                              ch_mlib_macs_atacseqqc
+                                              ch_mlib_macs_atacseqqc,
+                                              ch_diffbind
     path '*igv.txt' into ch_mlib_macs_igv
     path '*_mqc.tsv' into ch_mlib_macs_mqc
     path '*.{bed,xls,gappedPeak,bdg}'
@@ -1962,6 +1965,39 @@ process MERGED_REP_CONSENSUS_DESEQ2 {
     """
 }
 
+/*
+ * Replace STEP 8.9 by ChIPpeakAnno and Run DiffBind
+ */
+// Group by ip from this point and carry forward boolean variables
+// need bam file, peaks
+ch_diffbind.join(ch_group_bam_diffbind, by: 0)
+           .map{[it[2], it[3][0], it[3][1]]}.flatten()
+           .set{ch_peak_bam}
+process DIFFBIND {
+  errorStrategy { task.attempt <= 3 ? 'retry' : 'ignore' }
+  label 'process_medium'
+  publishDir "${params.outdir}/bwa/mergedLibrary", mode: params.publish_dir_mode
+  when:
+  params.macs_gsize && !params.skip_consensus_peaks
+
+  input:
+  path peaks from ch_peak_bam.collect()
+  path designtab from ch_input
+  path gtf from ch_gtf
+
+  output:
+  path 'DiffBind/*' into ch_diffbind_res
+
+  script:
+  """
+  diffbind.r -d ${designtab} \\
+  -p ${peaks.collect{it.toString()}.join('___')} \\
+  -g ${gtf} \\
+  -c $task.cpus
+  """
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 /* --                                                                     -- */
@@ -2165,6 +2201,7 @@ process index_documentation {
     path checksum from ch_checksum.collect().ifEmpty([])
     path workflow_summary from ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml')
     path ('software_versions/*') from ch_software_versions_mqc.collect()
+    path ('DiffBind/*') from ch_diffbind_res.collect().ifEmpty([])
     path rds from atacseqqc_rds.collect()
     
     output:
