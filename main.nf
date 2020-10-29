@@ -1520,7 +1520,7 @@ process MERGED_LIB_ATACseqQC {
         --cores $task.cpus \\
         --name $name \\
         --peaks $peak \\
-        --bams ${bams_files.join('___')} \\
+        --bams ${bam_files.join('___')} \\
         --gtf $gtf
     """
 }
