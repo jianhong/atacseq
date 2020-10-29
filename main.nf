@@ -1514,12 +1514,13 @@ process MERGED_LIB_ATACseqQC {
     path '*' into atacseqqc_files
 
     script:
+    bam_files = bams.findAll { it.toString().endsWith('.bam') }.sort()
     """
     atacseqqc.r \\
         --cores $task.cpus \\
         --name $name \\
         --peaks $peak \\
-        --bams $bams.findAll { it.toString().endsWith('.bam') }.join('___') \\
+        --bams ${bams_files.join('___')} \\
         --gtf $gtf
     """
 }
