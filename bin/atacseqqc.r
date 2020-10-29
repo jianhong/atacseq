@@ -55,6 +55,7 @@ dev.off()
 png(file.path(pf, paste0("fragmentSizeDistribution.", bamfile.labels, ".png")))
 fragSize <- fragSizeDist(bamfile, bamfile.labels)
 dev.off()
+saveRDS(fragSize, paste0(bamfile.labels, ".fragSize.rds"))
 
 possibleTag <- combn(LETTERS, 2)
 possibleTag <- c(paste0(possibleTag[1, ], possibleTag[2, ]),
@@ -155,13 +156,15 @@ if(all(file.exists(bamfiles))){
                         zeroAt=.5, n.tile=NTILE)
   dev.off()
   
+  png(tempfile())
   out <- featureAlignedDistribution(sigs, 
                                     reCenterPeaks(TSS, width=ups+dws),
                                     zeroAt=.5, n.tile=NTILE, type="l", 
                                     ylab="Averaged coverage")
-  
+  dev.off()
   range01 <- function(x){(x-min(x))/(max(x)-min(x))}
   out <- apply(out, 2, range01)
+  saveRDS(out, paste0(bamfile.labels, ".nucleosome.position.rds"))
   pdf(file.path(pf, paste0("featureAlignedTSScurve.", bamfile.labels, ".pdf")))
   matplot(out, type="l", xaxt="n", 
           xlab="Position (bp)", 

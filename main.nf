@@ -1512,6 +1512,7 @@ process MERGED_LIB_ATACseqQC {
 
     output:
     path '*' into atacseqqc_files
+    path '*.rds' into atacseqqc_rds
 
     script:
     bam_files = bams.findAll { it.toString().endsWith('.bam') }.sort()
@@ -2164,6 +2165,7 @@ process index_documentation {
     path checksum from ch_checksum.collect().ifEmpty([])
     path workflow_summary from ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml')
     path ('software_versions/*') from ch_software_versions_mqc.collect()
+    path rds from atacseqqc_rds
     
     output:
     path 'index.html'
