@@ -44,14 +44,12 @@ names(Peaks) <- SampleID
 rownames(sampleDesign) <- paste(sampleDesign$group, sampleDesign$replicate, sep="_R")
 Condition <- sampleDesign[SampleID, "group"]
 Replicate <- sampleDesign[SampleID, "replicate"]
-Factor <- sampleDesign[SampleID, "antibody"]
 Peakcaller <- "macs2"
 PeakFormat <- sub("^.*?_peaks.(.*)$", "\\1", Peaks)
 
 samples <- data.frame(SampleID=SampleID,
                       Condition=Condition,
                       Replicate=Replicate,
-                      Factor=Factor,
                       bamReads=bamReads,
                       Peaks=Peaks,
                       Peakcaller=Peakcaller,
