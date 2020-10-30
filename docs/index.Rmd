@@ -213,7 +213,7 @@ if(length(np)>0){
   npd <- melt(npd)
   npd$nucleosome <- ifelse(grepl("NucleosomeFree", npd$Var2), "NucleosomeFree", "mononucleosome")
   npd$sample <- ifelse(grepl("NucleosomeFree", npd$Var2), sub("NucleosomeFree", "", npd$Var2), sub("mononucleosome", "", npd$Var2))
-  ggplot(npd, aes(x=Var1, y=value, color = sample)) + geom_line() + facet_wrap(vars(nucleosome), ncol = 1)) +
+  ggplot(npd, aes(x=Var1, y=value, color = sample)) + geom_line() + facet_wrap(vars(nucleosome), ncol = 1) +
     theme_bw()
 }
 ```
