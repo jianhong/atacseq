@@ -57,15 +57,18 @@ fragSize <- fragSizeDist(bamfile, bamfile.labels)
 dev.off()
 saveRDS(fragSize, paste0(bamfile.labels, ".fragSize.rds"))
 
-possibleTag <- combn(LETTERS, 2)
-possibleTag <- c(paste0(possibleTag[1, ], possibleTag[2, ]),
-                 paste0(possibleTag[2, ], possibleTag[1, ]))
-
+possibleTag <- list("integer"=c("AM", "AS", "CM", "CP", "FI", "H0", "H1", "H2", 
+                                "HI", "IH", "MQ", "NH", "NM", "OP", "PQ", "SM",
+                                "TC", "UQ"), 
+                 "character"=c("BC", "BQ", "BZ", "CB", "CC", "CO", "CQ", "CR",
+                               "CS", "CT", "CY", "E2", "FS", "LB", "MC", "MD",
+                               "MI", "OA", "OC", "OQ", "OX", "PG", "PT", "PU",
+                               "Q2", "QT", "QX", "R2", "RG", "RX", "SA", "TS",
+                               "U2"))
 bamTop100 <- scanBam(BamFile(bamfile, yieldSize = 100),
-                     param = ScanBamParam(tag=possibleTag, what = scanBamWhat()))[[1]]
+                     param = ScanBamParam(tag=unlist(possibleTag), what = scanBamWhat()))[[1]]
 bamTop100tag <- bamTop100$tag
-tags <- names(bamTop100tag)[lengths(bamTop100tag)==100]
-tags <- tags[tags!="PG"]
+tags <- unname(names(bamTop100tag)[lengths(bamTop100tag)>0])
 
 outPath <- file.path(pf, "splited")
 dir.create(outPath)
