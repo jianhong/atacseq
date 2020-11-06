@@ -1506,7 +1506,7 @@ process MERGED_LIB_ATACseqQC {
     publishDir "${params.outdir}/bwa/mergedLibrary/ATACseqQC/${PEAK_TYPE}", mode: params.publish_dir_mode
 
     when:
-    !params.skip_ataqv
+    !params.skip_ataqv && !params.single_end
 
     input:
     tuple val(name), path(bams), path(peak) from ch_mlib_bam_atacseqqc.join(ch_mlib_macs_atacseqqc, by: [0])
@@ -2201,7 +2201,7 @@ process index_documentation {
     path workflow_summary from ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml')
     path ('software_versions/*') from ch_software_versions_mqc.collect()
     path ('DiffBind/*') from ch_diffbind_res.collect().ifEmpty([])
-    path rds from atacseqqc_rds.collect()
+    path rds from atacseqqc_rds.collect().ifEmpty([])
     
     output:
     path 'index.html'

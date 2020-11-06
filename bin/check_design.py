@@ -40,6 +40,7 @@ def check_design(DesignFileIn,DesignFileOut):
     ## CHECK HEADER
     fin = open(DesignFileIn,'r')
     header = fin.readline().strip().split(',')
+    header = header[0:4]
     if header != HEADER:
         print("{} header: {} != {}".format(ERROR_STR,','.join(header),','.join(HEADER)))
         sys.exit(1)
@@ -50,6 +51,7 @@ def check_design(DesignFileIn,DesignFileOut):
         line = fin.readline()
         if line:
             lspl = [x.strip() for x in line.strip().split(',') if x]
+            lspl = lspl[0:4]
 
             ## CHECK VALID NUMBER OF COLUMNS PER SAMPLE
             numCols = len(lspl)

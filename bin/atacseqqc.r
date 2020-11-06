@@ -186,57 +186,46 @@ if(all(file.exists(bamfiles))){
   dev.off()
 }
 
-dir.create(opt$species)
-# CTCF <- query(MotifDb, c("CTCF"))
-# CTCF <- as.list(CTCF)
-# 
-# seed <- paste("Package: BSgenome.Tguttata.UCSC.taeGut1
-# Title: Full genome sequences for Taeniopygia guttata (UCSC version taeGut1)
-# Description: Full genome sequences for Taeniopygia guttata (Zebra finch) as provided by UCSC (taeGut1, Jul. 2008) and stored in Biostrings objects.
-# Version: 1.4.2
-# organism: Taeniopygia guttata
-# common_name: Zebra finch
-# provider: UCSC
-# provider_version: taeGut1
-# release_date: Jul. 2008
-# release_name: WUSTL v3.2.4
-# source_url: http://hgdownload.soe.ucsc.edu/goldenPath/taeGut1/bigZips/
-# organism_biocview: Taeniopygia_guttata
-# BSgenomeObjname: Tguttata
-# SrcDataFiles: chromFa.tar.gz from http://hgdownload.soe.ucsc.edu/goldenPath/taeGut1/bigZips/
-# PkgExamples: genome$chr1 # abc
-# seqs_srcdir:", opt$fasta)
-# writeLines(seed, "BSgenome.Tguttata.UCSC.taeGut1")
-# forgeMaskedBSgenomeDataPkg("BSgenome.Tguttata.UCSC.taeGut1", masks_srcdir=".")
-# dir.create("./library")
-# install.packages("BSgenome.Mfuro.UCSC.musFur1", type = "source", repos=NULL, lib = "./library")
-# library("BSgenome.Mfuro.UCSC.musFur1", lib.loc="./library")
-# genome <- BSgenome.Mfuro.UCSC.musFur1
-# 
-# pdf(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".pdf")))
-# sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]], 
-#                          genome=genome,
-#                          min.score="90%", seqlev=seqlev,
-#                          upstream=100, downstream=100)
-# dev.off()
-# png(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".png")))
-# sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]], 
-#                          genome=genome,
-#                          min.score="90%", seqlev=seqlev,
-#                          upstream=100, downstream=100)
-# dev.off()
-# 
-# pdf(file.path(pf, paste0("CTCF.vplot.", bamfile.labels, ".pdf")))
-# vp <- vPlot(shiftedBamfile, pfm=CTCF[[1]], 
-#             genome=genome, min.score="90%", seqlev=seqlev,
-#             upstream=200, downstream=200, 
-#             ylim=c(30, 250), bandwidth=c(2, 1))
-# dev.off()
-# pdf(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".pdf")))
-# distanceDyad(vp, pch=20, cex=.5)
-# dev.off()
-# png(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".png")))
-# distanceDyad(vp, pch=20, cex=.5)
-# dev.off()
+BSavail <- BiocManager::available("BSgenome.*.UCSC")
+BSavail <- BSavail[!grepl("masked", BSavail)]
+if(any(grepl(paste0(opt$species, "$"), BSavail))){
+  CTCF <- query(MotifDb, c("CTCF"))
+  CTCF <- as.list(CTCF)
+  genome <- BSavail[grepl(paste0(opt$species, "$"), BSavail)][1]
+  askPkg <- function(pkg){
+    if (!require(pkg, character.only = TRUE)){
+      BiocManager::install(pkg, suppressUpdates=TRUE)
+      library(pkg, character.only = TRUE)
+    }
+  }
+  askPkg(genome)
+  genome <- get(genome)
+  seqlevelsStyle(seqlev) <- seqlevelsStyle(genome)[1] 
+  pdf(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".pdf")))
+  sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]],
+                           genome=genome,
+                           min.score="90%", seqlev=seqlev,
+                           upstream=100, downstream=100)
+  dev.off()
+  png(file.path(pf, paste0("CTCF.footprint.", bamfile.labels, ".png")))
+  sigs <- factorFootprints(shiftedBamfile, pfm=CTCF[[1]],
+                           genome=genome,
+                           min.score="90%", seqlev=seqlev,
+                           upstream=100, downstream=100)
+  dev.off()
+  
+  pdf(file.path(pf, paste0("CTCF.vplot.", bamfile.labels, ".pdf")))
+  vp <- vPlot(shiftedBamfile, pfm=CTCF[[1]],
+              genome=genome, min.score="90%", seqlev=seqlev,
+              upstream=200, downstream=200,
+              ylim=c(30, 250), bandwidth=c(2, 1))
+  dev.off()
+  pdf(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".pdf")))
+  distanceDyad(vp, pch=20, cex=.5)
+  dev.off()
+  png(file.path(pf, paste0("CTCF.vplot.distanceDyad.", bamfile.labels, ".png")))
+  distanceDyad(vp, pch=20, cex=.5)
+  dev.off()
+}
 
 
