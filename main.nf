@@ -2029,7 +2029,7 @@ process IGV {
 
     output:
     path '*.{txt,xml}'
-    path 'trackhub/*.txt'
+    path 'trackhub/*'
 
     script: // scripts are bundled with the pipeline, in nf-core/atacseq/bin/
     """
