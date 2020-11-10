@@ -89,7 +89,7 @@ def create_trackhub(OutFolder,ListFile,Genome,EMAIL,PathPrefix=''):
         email=EMAIL)
     
     for ifile,color in fileList:
-        extension = os.path.splitext(ifile)[1].lower()
+        extension = os.path.splitext(ifile)[1].replace(".", "").lower()
         track = trackhub.Track(
           name=trackhub.helpers.sanitize(os.path.basename(ifile)) ,
           source=ifile,
