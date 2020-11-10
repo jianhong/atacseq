@@ -66,7 +66,7 @@ def igv_files_to_session(XMLOut,ListFile,Genome,PathPrefix=''):
             fileList.append((PathPrefix.strip()+ifile,colour))
         else:
             break
-            fout.close()
+            fin.close()
 
     ## ADD RESOURCES SECTION
     XMLStr =  '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'

@@ -53,12 +53,16 @@ def makedir(path):
 ## MAIN FUNCTION
 ############################################
 ############################################
-tracktypes = ['BED', 'bedGraph', 'GTF', 'PSL', 'bigBed', 'WIG', 'bigGenePred', 'bigNarrowPeak', 'bigMaf', 'bigChain', 'bigPsl', 'barChart', 'bigBarChart', 'interact', 'bigInteract', 'bigWig', 'BAM', 'CRAM', 'VCF', 'MAF', 'broadPeak', 'narrowPeak']
-TrackType = {}
-Visibility = {}
+tracktypes = ['bigWig', 'bam', 'bigBed', 'vcfTabix', 'bigNarrowPeak',
+              'bigBarChart', 'bigChain', 'bigGenePred', 'bigNarrowPeak',
+              'bigMaf', 'bigPsl', 'halSnake']
+TrackType = {'bw':'bigWig', 'bb':'bigBed'}
+Visibility = {'bw':'full', 'bb':'dense'}
 for tt in tracktypes:
     TrackType[tt.lower()] = tt
-    if tt in ['BED', 'GTF', 'PSL', 'bigBed', 'bigGenePred', 'bigNarrowPeak', 'bigMaf', 'bigChain', 'bigPsl', 'barChart', 'bigBarChart', 'interact', 'bigInteract', 'BAM', 'CRAM', 'VCF', 'MAF', 'broadPeak', 'narrowPeak']:
+    if tt in ['bam', 'bigBed', 'vcfTabix', 'bigNarrowPeak',
+              'bigBarChart', 'bigChain', 'bigGenePred', 'bigNarrowPeak',
+              'bigMaf', 'bigPsl', 'halSnake']:
       Visibility[tt.lower()] = 'dense'
     else:
       Visibility[tt.lower()] = 'full'
@@ -78,7 +82,7 @@ def create_trackhub(OutFolder,ListFile,Genome,EMAIL,PathPrefix=''):
             fileList.append((PathPrefix.strip()+ifile,colour))
         else:
             break
-            fout.close()
+            fin.close()
 
     # Initialize the components of a track hub, already connected together
     hub, genomes_file, genome, trackdb = trackhub.default_hub(
@@ -90,16 +94,21 @@ def create_trackhub(OutFolder,ListFile,Genome,EMAIL,PathPrefix=''):
     
     for ifile,color in fileList:
         extension = os.path.splitext(ifile)[1].replace(".", "").lower()
-        track = trackhub.Track(
-          name=trackhub.helpers.sanitize(os.path.basename(ifile)) ,
-          source=ifile,
-          color=color,
-          visibility=Visibility[extension],
-          tracktype=TrackType[extension],
-          autoScale='on')
-        trackdb.add_tracks(track)
+        if extension in ['bed','broadpeak','narrowpeak']:
+          pass
+        elif extension in TrackType.keys():
+          track = trackhub.Track(
+            name=trackhub.helpers.sanitize(os.path.basename(ifile)) ,
+            source=ifile,
+            color=color,
+            visibility=Visibility[extension],
+            tracktype=TrackType[extension],
+            autoScale='on')
+          trackdb.add_tracks(track)
+        else:
+          pass
     
-    trackhub.upload.upload_hub(hub=hub, host='localhost', remote_dir=OutFolder)
+    hub.render(staging=OutFolder)
 
 ############################################
 ############################################
