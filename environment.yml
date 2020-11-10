@@ -25,6 +25,7 @@ dependencies:
   - conda-forge::r-xfun=0.15
   - conda-forge::gawk=5.1.0
   - conda-forge::pigz=2.3.4               ## Required for TrimGalore multi-threading
+  - conda-forge::pandoc=2.11.0.4  ## Required for rmarkdown
 
   ## bioconda packages
   - bioconda::fastqc=0.11.9
@@ -49,3 +50,5 @@ dependencies:
   - bioconda::bioconductor-atacseqqc
   - bioconda::bioconductor-chippeakanno
   - bioconda::bioconductor-motifdb
+  - bioconda::r-rmarkdown
+  - bioconda::trackhub

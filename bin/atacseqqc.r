@@ -159,7 +159,7 @@ if(all(file.exists(bamfiles))){
                         zeroAt=.5, n.tile=NTILE)
   dev.off()
   
-  png(tempfile())
+  png(tempfile(fileext = ".png"))
   out <- featureAlignedDistribution(sigs, 
                                     reCenterPeaks(TSS, width=ups+dws),
                                     zeroAt=.5, n.tile=NTILE, type="l", 
