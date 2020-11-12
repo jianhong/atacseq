@@ -289,6 +289,7 @@ summary['Launch Dir']             = workflow.launchDir
 summary['Working Dir']            = workflow.workDir
 summary['Script Dir']             = workflow.projectDir
 summary['User']                   = workflow.userName
+summary['temp Dir']               = workflow.tmpDir
 if (workflow.profile.contains('awsbatch')) {
     summary['AWS Region']         = params.awsregion
     summary['AWS Queue']          = params.awsqueue
@@ -2035,7 +2036,7 @@ process IGV {
     """
     cat *.txt > igv_files.txt
     igv_files_to_session.py igv_session.xml igv_files.txt ../../genome/${fasta.getName()} --path_prefix '../../'
-    create_trackhub.py trackhub igv_files.txt $params.species $params.email --path_prefix '../../'
+    create_trackhub.py trackhub igv_files.txt $params.species $params.email --path_prefix '../../../../'
     """
 }
 
