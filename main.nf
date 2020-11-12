@@ -2010,7 +2010,7 @@ process DIFFBIND {
  * STEP 9: Create IGV session file
  */
 process IGV {
-    publishDir "${params.outdir}/igv/${PEAK_TYPE}", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/igv/${PEAK_TYPE}", mode: 'copyNoFollow'
 
     when:
     !params.skip_igv
