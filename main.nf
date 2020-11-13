@@ -289,7 +289,6 @@ summary['Launch Dir']             = workflow.launchDir
 summary['Working Dir']            = workflow.workDir
 summary['Script Dir']             = workflow.projectDir
 summary['User']                   = workflow.userName
-summary['temp Dir']               = workflow.tmpDir
 if (workflow.profile.contains('awsbatch')) {
     summary['AWS Region']         = params.awsregion
     summary['AWS Queue']          = params.awsqueue
@@ -2010,7 +2009,7 @@ process DIFFBIND {
  * STEP 9: Create IGV session file
  */
 process IGV {
-    publishDir "${params.outdir}/igv/${PEAK_TYPE}", mode: 'copyNoFollow'
+    publishDir "${params.outdir}/igv/${PEAK_TYPE}", mode: params.publish_dir_mode
 
     when:
     !params.skip_igv
