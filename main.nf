@@ -2026,16 +2026,19 @@ process IGV {
     path rpeaks from ch_mrep_macs_igv.collect().ifEmpty([])
     path rconsensus_peaks from ch_mrep_macs_consensus_igv.collect().ifEmpty([])
     path rdifferential_peaks from ch_mrep_macs_consensus_deseq_comp_igv.collect().ifEmpty([])
+    
+    path designtab from ch_input
 
     output:
     path '*.{txt,xml}'
     path 'trackhub/*'
 
     script: // scripts are bundled with the pipeline, in nf-core/atacseq/bin/
+
     """
     cat *.txt > igv_files.txt
     igv_files_to_session.py igv_session.xml igv_files.txt ../../genome/${fasta.getName()} --path_prefix '../../'
-    create_trackhub.py trackhub igv_files.txt $params.species $params.email --path_prefix '../../../../'
+    create_trackhub.py trackhub igv_files.txt $params.species $params.email $designtab --path_prefix '../../../../' --postfix '.mLb.clN__.mRp.clN'
     """
 }
 
