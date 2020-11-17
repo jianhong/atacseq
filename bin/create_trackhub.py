@@ -65,7 +65,7 @@ Visibility = {'bw':'full', 'bb':'dense', 'bed':'dense',
 for tt in tracktypes:
     TrackType[tt.lower()] = tt
     if tt in ['bam', 'bigBed', 'vcfTabix', 'bigNarrowPeak',
-              'bigBarChart', 'bigChain', 'bigGenePred', 'bigNarrowPeak',
+              'bigBarChart', 'bigChain', 'bigGenePred', 'bigBroadPeak',
               'bigMaf', 'bigPsl', 'halSnake']:
       Visibility[tt.lower()] = 'dense'
     else:
