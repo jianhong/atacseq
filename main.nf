@@ -1983,7 +1983,7 @@ process DIFFBIND {
   path peaks from ch_peak_bam.collect()
   path designtab from ch_input
   path gtf from ch_gtf
-  path balcklist from ch_blacklist
+  path blacklist from ch_blacklist.ifEmpty([])
 
   output:
   path 'DiffBind/*' into ch_diffbind_res
