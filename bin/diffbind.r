@@ -167,11 +167,7 @@ if(nrow(samples)>3){
                              categories = DBA_CONDITION,
                              block = DBA_TREATMENT)
       }
-      if(is.logical(BLACKLIST)){
-        chip <- dba.analyze(chip, bBlacklist = FALSE, bGreylist = FALSE)
-      }else{
-        chip <- dba.analyze(chip)
-      }
+      chip <- dba.analyze(chip, bBlacklist = FALSE, bGreylist = FALSE)
       
       chip.DB <- dba.report(chip, th=1)
       
