@@ -182,6 +182,7 @@ if (params.gtf)       { ch_gtf = file(params.gtf, checkIfExists: true) } else { 
 if (params.gene_bed)  { ch_gene_bed = file(params.gene_bed, checkIfExists: true) }
 if (params.tss_bed)   { ch_tss_bed = file(params.tss_bed, checkIfExists: true) }
 if (params.blacklist) { ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true) } else { ch_blacklist = Channel.empty() }
+ch_blacklist.into{ch_blacklist;ch_blacklist_diffbind}
 
 if (params.fasta) {
     lastPath = params.fasta.lastIndexOf(File.separator)
@@ -1983,7 +1984,7 @@ process DIFFBIND {
   path peaks from ch_peak_bam.collect()
   path designtab from ch_input
   path gtf from ch_gtf
-  path blacklist from ch_blacklist.ifEmpty([])
+  path blacklist from ch_blacklist_diffbind.ifEmpty([])
 
   output:
   path 'DiffBind/*' into ch_diffbind_res
