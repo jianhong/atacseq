@@ -1990,11 +1990,12 @@ process DIFFBIND {
   path 'DiffBind/*' into ch_diffbind_res
 
   script:
+  blacklist_params = params.blacklist ? "-b ${blacklist}" : '-b FALSE'
   """
   diffbind.r -d ${designtab} \\
   -p ${peaks.collect{it.toString()}.join('___')} \\
   -g ${gtf} \\
-  -b ${blacklist} \\
+  ${blacklist_params} \\
   -s ${params.genome} \\
   -c $task.cpus
   """
