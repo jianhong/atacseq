@@ -961,7 +961,7 @@ process MERGE_REP_BAM {
        -o ${name}.norm.CPM.bw \\
        --binSize 10  --normalizeUsing CPM ${extendReads}
 
-    if [ "$params.deep_gsize" != "" ] && [ "$params.deep_gsize" != "false" ]
+    if [ "$params.deep_gsize" != "" ] && [ "$params.deep_gsize" != "false" ] && [ "$params.deep_gsize" != "null" ]
     then
     bamCoverage -b ${name}.sorted.bam \\
        -o ${name}.norm.RPGC.bw \\
