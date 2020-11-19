@@ -136,7 +136,8 @@ params.gene_bed = params.genome ? params.genomes[ params.genome ].bed12 ?: false
 params.mito_name = params.genome ? params.genomes[ params.genome ].mito_name ?: false : false
 params.macs_gsize = params.genome ? params.genomes[ params.genome ].macs_gsize ?: false : false
 params.blacklist = params.genome ? params.genomes[ params.genome ].blacklist ?: false : false
-anno_readme = params.genome ? params.genomes[ params.genome ].readme ?: false : false
+params.anno_readme = params.genome ? params.genomes[ params.genome ].readme ?: false : false
+params.species = params.genome ? params.genomes[ params.genome ].species ?: params.genome : false
 
 // Global variables
 def PEAK_TYPE = params.narrow_peak ? 'narrowPeak' : 'broadPeak'
@@ -150,6 +151,9 @@ ch_multiqc_config = file("$baseDir/assets/multiqc_config.yaml", checkIfExists: t
 ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config, checkIfExists: true) : Channel.empty()
 ch_output_docs = file("$baseDir/docs/output.md", checkIfExists: true)
 ch_output_docs_images = file("$baseDir/docs/images/", checkIfExists: true)
+ch_index_docs = file("$baseDir/docs/index.Rmd", checkIfExists: true)
+ch_genomic_elements_bed = params.genomicElements? Channel.fromPath(params.genomicElements, checkIfExists: true) : Channel.empty()
+ch_genomic_elements_bed.into{ch_genomic_elements_bed; ch_genomic_elements_bed_group}
 
 // JSON files required by BAMTools for alignment filtering
 if (params.single_end) {
@@ -180,6 +184,7 @@ if (params.gtf)       { ch_gtf = file(params.gtf, checkIfExists: true) } else { 
 if (params.gene_bed)  { ch_gene_bed = file(params.gene_bed, checkIfExists: true) }
 if (params.tss_bed)   { ch_tss_bed = file(params.tss_bed, checkIfExists: true) }
 if (params.blacklist) { ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true) } else { ch_blacklist = Channel.empty() }
+ch_blacklist.into{ch_blacklist;ch_blacklist_diffbind}
 
 if (params.fasta) {
     lastPath = params.fasta.lastIndexOf(File.separator)
@@ -199,9 +204,9 @@ if (params.bwa_index) {
 }
 
 // Save AWS IGenomes file containing annotation version
-if (anno_readme && file(anno_readme).exists()) {
+if (params.anno_readme && file(params.anno_readme).exists()) {
     file("${params.outdir}/genome/").mkdirs()
-    file(anno_readme).copyTo("${params.outdir}/genome/")
+    file(params.anno_readme).copyTo("${params.outdir}/genome/")
 }
 
 ////////////////////////////////////////////////////
@@ -425,6 +430,8 @@ if (!params.gene_bed) {
         MAKE_BED = true
     }
 }
+// issue, it can not handle annotation in different chromosomal/strand
+// TODO: change it by TxDb
 if (MAKE_BED) {
     process MAKE_GENE_BED {
         tag "$gtf"
@@ -523,18 +530,27 @@ process FASTQC {
 
     output:
     path '*.{zip,html}' into ch_fastqc_reports_mqc
+    path 'md5.*.txt' into ch_checksum
 
     script:
     // Added soft-links to original fastqs for consistent naming in MultiQC
     if (params.single_end) {
         """
+        touch md5.${name}.txt
         [ ! -f  ${name}.fastq.gz ] && ln -s $reads ${name}.fastq.gz
+        gunzip -c ${name}.fastq.gz > ${name}.fastq
+        ${params.md5sum} ${name}.fastq >>md5.${name}.txt
         fastqc -q -t $task.cpus ${name}.fastq.gz
         """
     } else {
         """
+        touch md5.${name}.txt
         [ ! -f  ${name}_1.fastq.gz ] && ln -s ${reads[0]} ${name}_1.fastq.gz
         [ ! -f  ${name}_2.fastq.gz ] && ln -s ${reads[1]} ${name}_2.fastq.gz
+        gunzip -c ${name}_1.fastq.gz > ${name}_1.fastq
+        ${params.md5sum} ${name}_1.fastq >>md5.${name}.txt
+        gunzip -c ${name}_2.fastq.gz > ${name}_2.fastq
+        ${params.md5sum} ${name}_2.fastq >>md5.${name}.txt
         fastqc -q -t $task.cpus ${name}_1.fastq.gz
         fastqc -q -t $task.cpus ${name}_2.fastq.gz
         """
@@ -721,7 +737,8 @@ process MERGED_LIB_BAM {
     output:
     tuple val(name), path("*${prefix}.sorted.{bam,bam.bai}") into ch_mlib_bam_filter,
                                                                   ch_mlib_bam_preseq,
-                                                                  ch_mlib_bam_ataqv
+                                                                  ch_mlib_bam_ataqv,
+                                                                  ch_mlib_bam_atacseqqc
     path '*.{flagstat,idxstats,stats}' into ch_mlib_bam_stats_mqc
     path '*.txt' into ch_mlib_bam_metrics_mqc
 
@@ -843,7 +860,9 @@ if (params.single_end) {
                 ch_mlib_rm_orphan_bam_plotfingerprint;
                 ch_mlib_rm_orphan_bam_mrep;
                 ch_mlib_name_bam_mlib_counts;
-                ch_mlib_name_bam_mrep_counts }
+                ch_mlib_name_bam_mrep_counts;
+                ch_group_bam_diffbind;
+                ch_group_bam_merge_rup}
 
     ch_mlib_filter_bam_flagstat
         .into { ch_mlib_rm_orphan_flagstat_bigwig;
@@ -874,7 +893,9 @@ if (params.single_end) {
                                                              ch_mlib_rm_orphan_bam_bigwig,
                                                              ch_mlib_rm_orphan_bam_macs,
                                                              ch_mlib_rm_orphan_bam_plotfingerprint,
-                                                             ch_mlib_rm_orphan_bam_mrep
+                                                             ch_mlib_rm_orphan_bam_mrep,
+                                                             ch_group_bam_diffbind,
+                                                             ch_group_bam_merge_rup
         tuple val(name), path("${prefix}.bam") into ch_mlib_name_bam_mlib_counts,
                                                     ch_mlib_name_bam_mrep_counts
         tuple val(name), path('*.flagstat') into ch_mlib_rm_orphan_flagstat_bigwig,
@@ -895,6 +916,61 @@ if (params.single_end) {
         """
     }
 }
+
+
+/*
+ * STEP 4.3: Merge replicated bams
+ */
+ch_group_bam_merge_rup
+      .map { it ->  [it[0].replaceAll(/_R\d+.*$/, ""), it[1]].flatten() }
+      .groupTuple(by: 0)
+      .map { it -> [it[0], it[1][1..-1].flatten()]}
+      .set{ch_group_bam_merge_rup}
+
+process MERGE_REP_BAM {
+    tag "$name"
+    label 'process_medium'
+    publishDir path: "${params.outdir}/bwa/mergedLibrary/replicatesMerged", mode: params.publish_dir_mode,
+        saveAs: { filename ->
+                      if (filename.endsWith('.bw')) "bigWigs/$filename"
+                          else if (filename.endsWith('.sorted.bam')) "bams/$filename"
+                          else if (filename.endsWith('.sorted.bam.bai')) "bams/$filename"
+                          else null
+                }
+
+    input:
+    tuple val(name), path(bam) from ch_group_bam_merge_rup
+
+    output:
+    tuple val(name), path('*.{bam,bam.bai}') into ch_group_bam_rup_merged
+    path '*.bw' into ch_group_bw_rup_merged
+
+    script: 
+    singleExt = (params.single_end && params.fragment_size > 0) ? "--extendReads ${params.fragment_size}" : ''
+    extendReads = params.single_end ? "${singleExt}" : '--extendReads'
+    """
+    samtools merge \\
+        ${name}.bam \\
+        ${bam.findAll{it.toString().endsWith('.bam')}.join(' ')}
+        
+    samtools sort -o ${name}.sorted.bam ${name}.bam 
+
+    samtools index ${name}.sorted.bam
+    
+    bamCoverage -b ${name}.sorted.bam \\
+       -o ${name}.norm.CPM.bw \\
+       --binSize 10  --normalizeUsing CPM ${extendReads}
+
+    if [ "$params.deep_gsize" != "" ] && [ "$params.deep_gsize" != "false" ] && [ "$params.deep_gsize" != "null" ]
+    then
+    bamCoverage -b ${name}.sorted.bam \\
+       -o ${name}.norm.RPGC.bw \\
+       --effectiveGenomeSize $params.deep_gsize \\
+       --binSize 10  --normalizeUsing RPGC ${extendReads}
+    fi 
+    """
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -983,6 +1059,7 @@ process MERGED_LIB_PICARD_METRICS {
 /*
  * STEP 5.3: Read depth normalised bigWig
  */
+// TODO: change to deepTools
 process MERGED_LIB_BIGWIG {
     tag "$name"
     label 'process_medium'
@@ -990,6 +1067,7 @@ process MERGED_LIB_BIGWIG {
         saveAs: { filename ->
                       if (filename.endsWith('scale_factor.txt')) "scale/$filename"
                       else if (filename.endsWith('.bigWig')) filename
+                      else if (filename.endsWith('.bw')) "deepTools/$filename"
                       else null
                 }
 
@@ -1001,11 +1079,14 @@ process MERGED_LIB_BIGWIG {
     tuple val(name), path('*.bigWig') into ch_mlib_bigwig_plotprofile
     path '*igv.txt' into ch_mlib_bigwig_igv
     path '*scale_factor.txt'
+    path '*.bw' into ch_bw_computematrix
 
     script:
     prefix = "${name}.mLb.clN"
     pe_fragment = params.single_end ? '' : '-pc'
     extend = (params.single_end && params.fragment_size > 0) ? "-fs ${params.fragment_size}" : ''
+    singleExt = (params.single_end && params.fragment_size > 0) ? "--extendReads ${params.fragment_size}" : ''
+    extendReads = params.single_end ? "${singleExt}" : '--extendReads'
     """
     SCALE_FACTOR=\$(grep 'mapped (' $flagstat | awk '{print 1000000/\$1}')
     echo \$SCALE_FACTOR > ${prefix}.scale_factor.txt
@@ -1014,6 +1095,10 @@ process MERGED_LIB_BIGWIG {
     bedGraphToBigWig ${prefix}.bedGraph $sizes ${prefix}.bigWig
 
     find * -type f -name "*.bigWig" -exec echo -e "bwa/mergedLibrary/bigwig/"{}"\\t0,0,178" \\; > ${prefix}.bigWig.igv.txt
+    
+    bamCoverage -b ${bam[0]} \\
+       -o ${name}.norm.CPM.bw \\
+       --binSize 10  --normalizeUsing CPM ${extendReads}
     """
 }
 
@@ -1096,6 +1181,129 @@ process MERGED_LIB_PLOTFINGERPRINT {
     """
 }
 
+
+process COMPUTMATRIX {
+    errorStrategy 'ignore'
+    label 'process_high'
+    publishDir "${params.outdir}/bwa/mergedLibrary/deepTools/metagene", mode: params.publish_dir_mode
+
+    when:
+    params.genomicElements
+
+    input:
+    path bws from ch_bw_computematrix.collect()
+    path bed from ch_genomic_elements_bed
+
+    output:
+    path '*.{gz,pdf,mat.tab}'
+
+    script:
+    bigwig = bws.findAll{it.toString().endsWith('.CPM.bw')}.join(' ')
+    sampleLabel = bigwig.replaceAll(".norm.CPM.bw","")
+    """
+    computeMatrix scale-regions \\
+        --regionsFileName $bed \\
+        --scoreFileName ${bigwig} \\
+        --samplesLabel ${sampleLabel} \\
+        --outFileName ${bed.getName()}.scale_regions.mat.gz \\
+        --outFileNameMatrix ${bed.getName()}.scale_regions.vals.mat.tab \\
+        --regionBodyLength $params.deepToolsBodySize \\
+        --beforeRegionStartLength $params.deepToolsRegionSize \\
+        --afterRegionStartLength $params.deepToolsRegionSize \\
+        --skipZeros \\
+        --numberOfProcessors $task.cpus
+
+    plotProfile --matrixFile ${bed.getName()}.scale_regions.mat.gz \\
+        --outFileName ${bed.getName()}.scale_regionsProfile.pdf \\
+        --outFileNameData ${bed.getName()}.scale_regionsProfile.tab
+
+    plotHeatmap --matrixFile ${bed.getName()}.scale_regions.mat.gz \\
+        --outFileName ${bed.getName()}.scale_regionsHeatmap.pdf \\
+        --outFileNameMatrix ${bed.getName()}.scale_regionsHeatmap.mat.tab
+        
+    computeMatrix reference-point \\
+        --regionsFileName $bed \\
+        --scoreFileName ${bigwig} \\
+        --samplesLabel ${sampleLabel} \\
+        --outFileName ${bed.getName()}.reference_${params.deepToolsReferencePoint}.mat.gz \\
+        --outFileNameMatrix ${bed.getName()}.reference_${params.deepToolsReferencePoint}.vals.mat.tab \\
+        --referencePoint $params.deepToolsReferencePoint \\
+        --beforeRegionStartLength $params.deepToolsRegionSize \\
+        --afterRegionStartLength $params.deepToolsRegionSize \\
+        --skipZeros \\
+        --numberOfProcessors $task.cpus
+
+    plotProfile --matrixFile ${bed.getName()}.reference_${params.deepToolsReferencePoint}.mat.gz \\
+        --outFileName ${bed.getName()}.reference_${params.deepToolsReferencePoint}Profile.pdf \\
+        --outFileNameData ${bed.getName()}.reference_${params.deepToolsReferencePoint}Profile.tab
+
+    plotHeatmap --matrixFile ${bed.getName()}.reference_${params.deepToolsReferencePoint}.mat.gz \\
+        --outFileName ${bed.getName()}.reference_${params.deepToolsReferencePoint}Heatmap.pdf \\
+        --outFileNameMatrix ${bed.getName()}.reference_${params.deepToolsReferencePoint}Heatmap.mat.tab
+    """
+}
+
+
+process COMPUTMATRIX_MERGED {
+    errorStrategy 'ignore'
+    label 'process_high'
+    publishDir "${params.outdir}/bwa/mergedLibrary/deepTools/metagene/merged", mode: params.publish_dir_mode
+
+    when:
+    params.genomicElements
+
+    input:
+    path bws from ch_group_bw_rup_merged.collect()
+    path bed from ch_genomic_elements_bed_group
+
+    output:
+    path '*.{gz,pdf,mat.tab}'
+
+    script:
+    bigwig = bws.findAll{it.toString().endsWith('.CPM.bw')}.join(' ')
+    sampleLabel = bigwig.replaceAll(".norm.CPM.bw","")
+    """
+    computeMatrix scale-regions \\
+        --regionsFileName $bed \\
+        --scoreFileName ${bigwig} \\
+        --samplesLabel ${sampleLabel} \\
+        --outFileName ${bed.getName()}.scale_regions.mat.gz \\
+        --outFileNameMatrix ${bed.getName()}.scale_regions.vals.mat.tab \\
+        --regionBodyLength $params.deepToolsBodySize \\
+        --beforeRegionStartLength $params.deepToolsRegionSize \\
+        --afterRegionStartLength $params.deepToolsRegionSize \\
+        --skipZeros \\
+        --numberOfProcessors $task.cpus
+
+    plotProfile --matrixFile ${bed.getName()}.scale_regions.mat.gz \\
+        --outFileName ${bed.getName()}.scale_regionsProfile.pdf \\
+        --outFileNameData ${bed.getName()}.scale_regionsProfile.tab
+
+    plotHeatmap --matrixFile ${bed.getName()}.scale_regions.mat.gz \\
+        --outFileName ${bed.getName()}.scale_regionsHeatmap.pdf \\
+        --outFileNameMatrix ${bed.getName()}.scale_regionsHeatmap.mat.tab
+        
+    computeMatrix reference-point \\
+        --regionsFileName $bed \\
+        --scoreFileName ${bigwig} \\
+        --samplesLabel ${sampleLabel} \\
+        --outFileName ${bed.getName()}.reference_${params.deepToolsReferencePoint}.mat.gz \\
+        --outFileNameMatrix ${bed.getName()}.reference_${params.deepToolsReferencePoint}.vals.mat.tab \\
+        --referencePoint $params.deepToolsReferencePoint \\
+        --beforeRegionStartLength $params.deepToolsRegionSize \\
+        --afterRegionStartLength $params.deepToolsRegionSize \\
+        --skipZeros \\
+        --numberOfProcessors $task.cpus
+
+    plotProfile --matrixFile ${bed.getName()}.reference_${params.deepToolsReferencePoint}.mat.gz \\
+        --outFileName ${bed.getName()}.reference_${params.deepToolsReferencePoint}Profile.pdf \\
+        --outFileNameData ${bed.getName()}.reference_${params.deepToolsReferencePoint}Profile.tab
+
+    plotHeatmap --matrixFile ${bed.getName()}.reference_${params.deepToolsReferencePoint}.mat.gz \\
+        --outFileName ${bed.getName()}.reference_${params.deepToolsReferencePoint}Heatmap.pdf \\
+        --outFileNameMatrix ${bed.getName()}.reference_${params.deepToolsReferencePoint}Heatmap.mat.tab
+    """
+}
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 /* --                                                                     -- */
@@ -1129,7 +1337,9 @@ process MERGED_LIB_MACS2 {
     tuple val(name), path("*$PEAK_TYPE") into ch_mlib_macs_homer,
                                               ch_mlib_macs_qc,
                                               ch_mlib_macs_consensus,
-                                              ch_mlib_macs_ataqv
+                                              ch_mlib_macs_ataqv,
+                                              ch_mlib_macs_atacseqqc,
+                                              ch_diffbind
     path '*igv.txt' into ch_mlib_macs_igv
     path '*_mqc.tsv' into ch_mlib_macs_mqc
     path '*.{bed,xls,gappedPeak,bdg}'
@@ -1166,6 +1376,7 @@ process MERGED_LIB_MACS2 {
 /*
  * STEP 6.2: Annotate peaks with HOMER
  */
+//TODO: move to ChIPpeakAnno
 process MERGED_LIB_MACS2_ANNOTATE {
     tag "$name"
     label 'process_medium'
@@ -1236,6 +1447,7 @@ process MERGED_LIB_MACS2_QC {
 /*
  * STEP 6.4: Consensus peaks across samples, create boolean filtering file, SAF file for featureCounts and UpSetR plot for intersection
  */
+//TODO: change to DiffBind
 process MERGED_LIB_CONSENSUS {
     label 'process_long'
     publishDir "${params.outdir}/bwa/mergedLibrary/macs/${PEAK_TYPE}/consensus", mode: params.publish_dir_mode,
@@ -1467,6 +1679,43 @@ process MERGED_LIB_ATAQV_MKARV {
         ${json.join(' ')}
     """
 }
+
+/*
+ * STEP 6.10: Run ataqv mkarv on all JSON files to render web app
+ */
+process MERGED_LIB_ATACseqQC {
+    tag "$name"
+    label 'process_high'
+    publishDir "${params.outdir}/bwa/mergedLibrary/ATACseqQC/${PEAK_TYPE}", mode: params.publish_dir_mode
+
+    when:
+    !params.skip_ataqv && !params.single_end
+
+    input:
+    tuple val(name), path(bams), path(peak) from ch_mlib_bam_atacseqqc.join(ch_mlib_macs_atacseqqc, by: [0])
+    path fasta from ch_fasta
+    path gtf from ch_gtf
+
+    output:
+    path '*' into atacseqqc_files
+    path '*.rds' into atacseqqc_rds
+
+    script:
+    bam_files = bams.findAll { it.toString().endsWith('.bam') }.sort()
+    """
+    atacseqqc.r \\
+        --cores $task.cpus \\
+        --name $name \\
+        --peaks $peak \\
+        --bams ${bam_files.join('___')} \\
+        --fasta ${fasta} \\
+        --gtf $gtf \\
+        --species ${params.species}
+    """
+}
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1899,6 +2148,42 @@ process MERGED_REP_CONSENSUS_DESEQ2 {
     """
 }
 
+/*
+ * Replace STEP 8.9 by ChIPpeakAnno and Run DiffBind
+ */
+// Group by ip from this point and carry forward boolean variables
+// need bam file, peaks
+ch_diffbind.join(ch_group_bam_diffbind, by: 0)
+           .map{[it[1], it[2][0], it[2][1]]}.flatten()
+           .set{ch_peak_bam}
+process DIFFBIND {
+  label 'process_medium'
+  publishDir "${params.outdir}/bwa/mergedLibrary", mode: params.publish_dir_mode
+  when:
+  params.macs_gsize && !params.skip_consensus_peaks
+
+  input:
+  path peaks from ch_peak_bam.collect()
+  path designtab from ch_input
+  path gtf from ch_gtf
+  path blacklist from ch_blacklist_diffbind.ifEmpty([])
+
+  output:
+  path 'DiffBind/*' into ch_diffbind_res
+
+  script:
+  blacklist_params = params.blacklist ? "-b ${blacklist}" : '-b FALSE'
+  """
+  diffbind.r -d ${designtab} \\
+  -p ${peaks.collect{it.toString()}.join('___')} \\
+  -g ${gtf} \\
+  ${blacklist_params} \\
+  -s ${params.genome} \\
+  -c $task.cpus
+  """
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 /* --                                                                     -- */
@@ -1911,7 +2196,7 @@ process MERGED_REP_CONSENSUS_DESEQ2 {
  * STEP 9: Create IGV session file
  */
 process IGV {
-    publishDir "${params.outdir}/igv/${PEAK_TYPE}", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/igv/${PEAK_TYPE}", mode: 'copyNoFollow'
 
     when:
     !params.skip_igv
@@ -1928,14 +2213,19 @@ process IGV {
     path rpeaks from ch_mrep_macs_igv.collect().ifEmpty([])
     path rconsensus_peaks from ch_mrep_macs_consensus_igv.collect().ifEmpty([])
     path rdifferential_peaks from ch_mrep_macs_consensus_deseq_comp_igv.collect().ifEmpty([])
+    
+    path designtab from ch_input
 
     output:
     path '*.{txt,xml}'
+    path 'trackhub/*'
 
     script: // scripts are bundled with the pipeline, in nf-core/atacseq/bin/
+
     """
     cat *.txt > igv_files.txt
     igv_files_to_session.py igv_session.xml igv_files.txt ../../genome/${fasta.getName()} --path_prefix '../../'
+    create_trackhub.py trackhub igv_files.txt $params.species $params.email $designtab '.mLb.clN__.mRp.clN' --path_prefix '../../../../'
     """
 }
 
@@ -2046,6 +2336,7 @@ process MULTIQC {
 
     output:
     path '*multiqc_report.html' into ch_multiqc_report
+    path '*_plots' into ch_multiqc_plots
     path '*_data'
 
     script:
@@ -2053,7 +2344,7 @@ process MULTIQC {
     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
     custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
     """
-    multiqc . -f $rtitle $rfilename $custom_config_file
+    multiqc . -f $rtitle $rfilename $custom_config_file -p
     """
 }
 
@@ -2083,6 +2374,37 @@ process output_documentation {
     markdown_to_html.py $output_docs -o results_description.html
     """
 }
+
+/*
+ * STEP 12: Output index HTML
+ */
+process index_documentation {
+    publishDir "${params.outdir}", mode: params.publish_dir_mode
+    
+    when:
+    !params.skip_multiqc
+    
+    input:
+    path index_docs from ch_index_docs
+    path images from ch_multiqc_plots
+    path doc_img from ch_output_docs_images
+    path designtab from ch_input
+    path checksum from ch_checksum.collect().ifEmpty([])
+    path workflow_summary from ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml')
+    path ('software_versions/*') from ch_software_versions_mqc.collect()
+    path ('DiffBind/*') from ch_diffbind_res.collect().ifEmpty([])
+    path rds from atacseqqc_rds.collect().ifEmpty([])
+    
+    output:
+    path 'index.html'
+
+    script:
+    """
+    cp ${index_docs} new.rmd
+    Rscript -e "rmarkdown::render('new.rmd', output_file='index.html', params = list(peaktype='${PEAK_TYPE}', design='${designtab}', genome='${params.genome}', summary='${workflow_summary}'))"
+    """
+}
+
 
 /*
  * Completion e-mail notification
@@ -2163,11 +2485,7 @@ workflow.onComplete {
             log.info "[nf-core/atacseq] Sent summary e-mail to $email_address (sendmail)"
         } catch (all) {
             // Catch failures and try with plaintext
-            def mail_cmd = [ 'mail', '-s', subject, '--content-type=text/html', email_address ]
-            if ( mqc_report.size() <= params.max_multiqc_email_size.toBytes() ) {
-              mail_cmd += [ '-A', mqc_report ]
-            }
-            mail_cmd.execute() << email_html
+            [ 'mail', '-s', subject, email_address ].execute() << email_txt
             log.info "[nf-core/atacseq] Sent summary e-mail to $email_address (mail)"
         }
     }
