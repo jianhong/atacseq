@@ -75,6 +75,7 @@
     * [`--plaintext_email`](#--plaintext_email)
     * [`--monochrome_logs`](#--monochrome_logs)
     * [`--multiqc_config`](#--multiqc_config)
+    * [`--genomicElements`](#--genomicElements)
 
 ## Introduction
 
@@ -587,3 +588,8 @@ Set to disable colourful command line output and live life in monochrome.
 ### `--multiqc_config`
 
 Specify a path to a custom MultiQC configuration file.
+
+### `--genomicElements`
+
+Specify a folder to bed file used for deepTools metagene analysis.
+
