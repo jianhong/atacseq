@@ -59,8 +59,8 @@ wget https://raw.githubusercontent.com/jianhong/atacseq/master/environment.yml
 conda env create -n atacflow -f environment.yml
 rm environment.yml
 conda activate atacflow
-nextflow pull jianhong/atacseq
-srun --mem 60G -c 2 nextflow run jianhong/atacseq -profile test
+nextflow pull jianhong/atacseq -r dev
+srun --mem 60G -c 2 nextflow run jianhong/atacseq -profile test -r dev
 ```
 
 ## Update
