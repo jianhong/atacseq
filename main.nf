@@ -2157,7 +2157,7 @@ ch_diffbind.join(ch_group_bam_diffbind, by: 0)
            .map{[it[1], it[2][0], it[2][1]]}.flatten()
            .set{ch_peak_bam}
 process DIFFBIND {
-  label 'process_medium'
+  label 'process_high'
   publishDir "${params.outdir}/bwa/mergedLibrary", mode: params.publish_dir_mode
   when:
   params.macs_gsize && !params.skip_consensus_peaks
