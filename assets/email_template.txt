@@ -4,16 +4,16 @@
   |\\ | |__  __ /  ` /  \\ |__) |__         }  {
   | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                         `._,._,'
-  nf-core/atacseq v${version}
+  jianhong/atacseq v${version}
 ----------------------------------------------------
 
 Run Name: $runName
 
 <% if (success){
-    out << "## nf-core/atacseq execution completed successfully! ##"
+    out << "## jianhong/atacseq execution completed successfully! ##"
 } else {
     out << """####################################################
-## nf-core/atacseq execution completed unsuccessfully! ##
+## jianhong/atacseq execution completed unsuccessfully! ##
 ####################################################
 The exit status of the task that caused the workflow execution to fail was: $exitStatus.
 The full error message was:
@@ -34,5 +34,5 @@ Pipeline Configuration:
 <% out << summary.collect{ k,v -> " - $k: $v" }.join("\n") %>
 
 --
-nf-core/atacseq
-https://github.com/nf-core/atacseq
+jianhong/atacseq
+https://github.com/jianhong/atacseq
