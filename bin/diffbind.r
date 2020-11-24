@@ -197,7 +197,7 @@ if(nrow(samples)>3){
       dev.off()
       
       pdf(file.path(pf, paste0("DiffBind.", names(contrasts)[i], ".Volcano.plot.pdf")))
-      dba.plotVolcano(chip, bUsePval = TRUE)
+      tryCatch(dba.plotVolcano(chip, bUsePval = TRUE), error=function(.e) message(.e))
       dev.off()
       
       png(file.path(pf, paste0("DiffBind.", names(contrasts)[i], ".MA.plot.png")))
@@ -205,7 +205,7 @@ if(nrow(samples)>3){
       dev.off()
       
       png(file.path(pf, paste0("DiffBind.", names(contrasts)[i], ".Volcano.plot.png")))
-      dba.plotVolcano(chip, bUsePval = TRUE)
+      tryCatch(dba.plotVolcano(chip, bUsePval = TRUE), error=function(.e) message(.e))
       dev.off()
       
       # export counts table
