@@ -2,7 +2,7 @@
 
 * fork the pipeline from nf-core/atacseq and create a custom pipeline. 
 
-# nf-core/atacseq: Changelog
+## nf-core/atacseq: Changelog
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
@@ -29,14 +29,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Replace `set` with `tuple` and `file()` with `path()` in all processes
 * Capitalise process names
 * Parameters:
-    * `--bwa_min_score` to set minimum alignment score for BWA MEM
-    * `--macs_fdr` to provide FDR threshold for MACS2 peak calling
-    * `--macs_pvalue` to provide p-value threshold for MACS2 peak calling
-    * `--skip_peak_qc` to skip MACS2 peak QC plot generation
-    * `--skip_peak_annotation` to skip annotation of MACS2 and consensus peaks with HOMER
-    * `--skip_consensus_peaks` to skip consensus peak generation
-    * `--deseq2_vst` to use variance stabilizing transformation (VST) instead of regularized log transformation (rlog) with DESeq2
-    * `--publish_dir_mode` to customise method of publishing results to output directory [nf-core/tools#585](https://github.com/nf-core/tools/issues/585)
+  * `--bwa_min_score` to set minimum alignment score for BWA MEM
+  * `--macs_fdr` to provide FDR threshold for MACS2 peak calling
+  * `--macs_pvalue` to provide p-value threshold for MACS2 peak calling
+  * `--skip_peak_qc` to skip MACS2 peak QC plot generation
+  * `--skip_peak_annotation` to skip annotation of MACS2 and consensus peaks with HOMER
+  * `--skip_consensus_peaks` to skip consensus peak generation
+  * `--deseq2_vst` to use variance stabilizing transformation (VST) instead of regularized log transformation (rlog) with DESeq2
+  * `--publish_dir_mode` to customise method of publishing results to output directory [nf-core/tools#585](https://github.com/nf-core/tools/issues/585)
 
 ### `Fixed`
 
@@ -97,14 +97,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Add `CITATIONS.md` file
 * Capitalised process names
 * Add parameters:
-    * `--seq_center`
-    * `--trim_nextseq`
-    * `--fingerprint_bins`
-    * `--broad_cutoff`
-    * `--min_reps_consensus`
-    * `--save_macs_pileup`
-    * `--skip_diff_analysis`
-    * `--skip_*` for skipping QC steps
+  * `--seq_center`
+  * `--trim_nextseq`
+  * `--fingerprint_bins`
+  * `--broad_cutoff`
+  * `--min_reps_consensus`
+  * `--save_macs_pileup`
+  * `--skip_diff_analysis`
+  * `--skip_*` for skipping QC steps
 
 ### `Fixed`
 

@@ -51,6 +51,7 @@ This pipeline will do qc analysis by ATACseqQC, generate the UCSC genome browser
 7. Create IGV session file containing bigWig tracks, peaks and differential sites for data visualisation ([`IGV`](https://software.broadinstitute.org/software/igv/)).
 8. Present QC for raw read, alignment, peak-calling and differential accessibility results ([`ataqv`](https://github.com/ParkerLab/ataqv), [`MultiQC`](http://multiqc.info/), [`R`](https://www.r-project.org/))
 
+
 ## Installation by conda
 
 ```bash
@@ -97,9 +98,7 @@ conda info --envs
 nextflow run jianhong/atacseq -profile test -resume --genomicElements beds/*.bed
 ```
 
+
 ## Get help
 
 Please create an issue to submit your questions.
-
-
-

@@ -147,13 +147,12 @@ def PEAK_TYPE = params.narrow_peak ? 'narrowPeak' : 'broadPeak'
 ////////////////////////////////////////////////////
 
 // Pipeline config
-ch_multiqc_config = file("$baseDir/assets/multiqc_config.yaml", checkIfExists: true)
+ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
 ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config, checkIfExists: true) : Channel.empty()
-ch_output_docs = file("$baseDir/docs/output.md", checkIfExists: true)
-ch_output_docs_images = file("$baseDir/docs/images/", checkIfExists: true)
-ch_index_docs = file("$baseDir/docs/index.Rmd", checkIfExists: true)
-ch_genomic_elements_bed = params.genomicElements? Channel.fromPath(params.genomicElements, checkIfExists: true) : Channel.empty()
-ch_genomic_elements_bed.into{ch_genomic_elements_bed; ch_genomic_elements_bed_group}
+
+ch_output_docs = file("$projectDir/docs/output.md", checkIfExists: true)
+ch_output_docs_images = file("$projectDir/docs/images/", checkIfExists: true)
+
 
 // JSON files required by BAMTools for alignment filtering
 if (params.single_end) {
@@ -163,17 +162,17 @@ if (params.single_end) {
 }
 
 // Header files for MultiQC
-ch_mlib_peak_count_header = file("$baseDir/assets/multiqc/mlib_peak_count_header.txt", checkIfExists: true)
-ch_mlib_frip_score_header = file("$baseDir/assets/multiqc/mlib_frip_score_header.txt", checkIfExists: true)
-ch_mlib_peak_annotation_header = file("$baseDir/assets/multiqc/mlib_peak_annotation_header.txt", checkIfExists: true)
-ch_mlib_deseq2_pca_header = file("$baseDir/assets/multiqc/mlib_deseq2_pca_header.txt", checkIfExists: true)
-ch_mlib_deseq2_clustering_header = file("$baseDir/assets/multiqc/mlib_deseq2_clustering_header.txt", checkIfExists: true)
+ch_mlib_peak_count_header = file("$projectDir/assets/multiqc/mlib_peak_count_header.txt", checkIfExists: true)
+ch_mlib_frip_score_header = file("$projectDir/assets/multiqc/mlib_frip_score_header.txt", checkIfExists: true)
+ch_mlib_peak_annotation_header = file("$projectDir/assets/multiqc/mlib_peak_annotation_header.txt", checkIfExists: true)
+ch_mlib_deseq2_pca_header = file("$projectDir/assets/multiqc/mlib_deseq2_pca_header.txt", checkIfExists: true)
+ch_mlib_deseq2_clustering_header = file("$projectDir/assets/multiqc/mlib_deseq2_clustering_header.txt", checkIfExists: true)
 
-ch_mrep_peak_count_header = file("$baseDir/assets/multiqc/mrep_peak_count_header.txt", checkIfExists: true)
-ch_mrep_frip_score_header = file("$baseDir/assets/multiqc/mrep_frip_score_header.txt", checkIfExists: true)
-ch_mrep_peak_annotation_header = file("$baseDir/assets/multiqc/mrep_peak_annotation_header.txt", checkIfExists: true)
-ch_mrep_deseq2_pca_header = file("$baseDir/assets/multiqc/mrep_deseq2_pca_header.txt", checkIfExists: true)
-ch_mrep_deseq2_clustering_header = file("$baseDir/assets/multiqc/mrep_deseq2_clustering_header.txt", checkIfExists: true)
+ch_mrep_peak_count_header = file("$projectDir/assets/multiqc/mrep_peak_count_header.txt", checkIfExists: true)
+ch_mrep_frip_score_header = file("$projectDir/assets/multiqc/mrep_frip_score_header.txt", checkIfExists: true)
+ch_mrep_peak_annotation_header = file("$projectDir/assets/multiqc/mrep_peak_annotation_header.txt", checkIfExists: true)
+ch_mrep_deseq2_pca_header = file("$projectDir/assets/multiqc/mrep_deseq2_pca_header.txt", checkIfExists: true)
+ch_mrep_deseq2_clustering_header = file("$projectDir/assets/multiqc/mrep_deseq2_clustering_header.txt", checkIfExists: true)
 
 ////////////////////////////////////////////////////
 /* --          VALIDATE INPUTS                 -- */
@@ -1134,6 +1133,7 @@ process MERGED_LIB_PLOTPROFILE {
         --afterRegionStartLength 3000 \\
         --skipZeros \\
         --smartLabels \\
+        --missingDataAsZero \\
         --numberOfProcessors $task.cpus
 
     plotProfile --matrixFile ${prefix}.computeMatrix.mat.gz \\
@@ -2461,18 +2461,18 @@ workflow.onComplete {
 
     // Render the TXT template
     def engine = new groovy.text.GStringTemplateEngine()
-    def tf = new File("$baseDir/assets/email_template.txt")
+    def tf = new File("$projectDir/assets/email_template.txt")
     def txt_template = engine.createTemplate(tf).make(email_fields)
     def email_txt = txt_template.toString()
 
     // Render the HTML template
-    def hf = new File("$baseDir/assets/email_template.html")
+    def hf = new File("$projectDir/assets/email_template.html")
     def html_template = engine.createTemplate(hf).make(email_fields)
     def email_html = html_template.toString()
 
     // Render the sendmail template
-    def smail_fields = [ email: email_address, subject: subject, email_txt: email_txt, email_html: email_html, baseDir: "$baseDir", mqcFile: mqc_report, mqcMaxSize: params.max_multiqc_email_size.toBytes() ]
-    def sf = new File("$baseDir/assets/sendmail_template.txt")
+    def smail_fields = [ email: email_address, subject: subject, email_txt: email_txt, email_html: email_html, projectDir: "$projectDir", mqcFile: mqc_report, mqcMaxSize: params.max_multiqc_email_size.toBytes() ]
+    def sf = new File("$projectDir/assets/sendmail_template.txt")
     def sendmail_template = engine.createTemplate(sf).make(smail_fields)
     def sendmail_html = sendmail_template.toString()
 
